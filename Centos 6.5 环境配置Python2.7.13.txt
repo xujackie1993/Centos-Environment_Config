@@ -1,0 +1,174 @@
+Centos 6.5 环境配置Python2.7.13
+参考：http://www.cnblogs.com/zhenglisai/p/6610156.html python版本升级，从2.6.6升级到2.7.13
+背景
+centos6.5系统自带了2.6.6版本的python，有时候为了项目上的需要，需要将python版本升级到2.7.13，下面介绍了如何进行升级。
+说明：python从2.6升级到2.7会引发很多问题，很多依赖python2.6的软件不能运行，需要一个个的修改配置文件（比如本文提到的yum问题），感觉升级2.7像是埋了一个雷，没准哪天用到什么软件发现不能运行。个人感觉，除非有特别的必要，要不然还是别升级了。
+将Python2.6.6升级为2.7.13
+1，从官网下载最新版本的python
+https://www.python.org/ftp/python/2.7.13/Python-2.7.13.tgz
+2，放在任意目录，比如/root下，解压
+3.安装readline和readline-devel
+如果不安装的话，升级之后的2.7版本python在命令行按删除，上下左右移动的时候是特殊字符，用起来很不方便。
+yum install -y readline readline-devel
+4，更改setup文件
+vim /root/Python-2.7.13/Modules/Setup
+将166行
+readline readline.c -lreadline -ltermcap
+前面的#号去掉，保存退出。
+5，编译python2.7
+在/root/Python-2.7.13/目录下运行
+./configure --prefix=/usr/local/python2.7
+6，安装
+编译通过以后，执行
+make && make install
+7，后续工作
+此时执行python --version看版本还是2.6.6，进行如下操作
+将2.6.6版本python备份：
+mv /usr/bin/python /usr/bin/python-old
+将2.7.13版本python连接到这个目录下
+ln -s /usr/local/python2.7/bin/python /usr/bin
+此时再执行python --version即可看到已经是最新版的python了。
+8，yum处理，
+这么操作以后，yum就不能用了，因为yum用的还是老版本的python，可以通过下面的方式解决。
+vim /usr/bin/yum
+将第一行的python位置改成2.6.6版本python位置
+即将
+#!/usr/bin/python
+改为
+#!/usr/bin/python-old
+此时再测试，yum也正常了。
+9，至此，python2.7升级完成。
+安装setuptools,pip,MySQL-Python
+参考：http://blog.csdn.net/clevercode/article/details/45438747 setuptools,MySQLdb的安装
+http://linuxtech.blog.51cto.com/3670088/1731147   centos系统下pip安装使用详解
+http://blog.csdn.net/weiliu0626/article/details/8444644 centos下安装mysql_python报错
+安装setuptools
+#下载setuptools   https://pypi.python.org/pypi/setuptools
+如果是zip格式的话 yum install zip unzip (压缩、解压)
+# cd /usr/local/src/python  下载目录
+# tar zxvf setuptools-36.0.1.tar.gz
+# cd setuptools-36.0.1
+# python setup.py build  
+# python setup.py install
+注意问题一
+Pip下载安装
+1、下载pip   https://pypi.python.org/pypi/pip
+2、解压安装
+# tar -xzvf pip-9.0.1.tar.gz
+# cd pip-9.0.1
+# python setup.py install
+3、如果pip安装后提示依然没有pip命令，需在在添加环境变量
+# vim /etc/profile
+在文档最后，添加:
+export PATH="/usr/local/python2.7/bin:$PATH"
+保存，退出
+然后运行：
+#source /etc/profile 
+查看pip版本
+pip -V
+不生效的话重启服务器
+安装MySQL-python
+安装过程中可能会报mysql_config not found,主要是缺少了mysql-devel库文件。要是进行了安装linux常用备份库。就不会出现该错误。
+
+安装MySQL-devel后正常运行
+yum install mysql-devel
+1、下载MySQL-Python  https://pypi.python.org/pypi/MySQL-python/1.2.5
+
+2、解压安装
+# cd /usr/local/src/python
+# tar zxvf MySQL-python-1.2.5.tar.gz
+# cd MySQL-python-1.2.3
+# python setup.py build
+# python setup.py install
+3、测试输入python，引入MysqlDb不报错。即安装成功
+
+中间出现问题汇总
+来源：http://blog.csdn.net/zyz511919766/article/details/14002497 
+configure: error: no acceptable C compiler found in $PATH
+https://www.bbsmax.com/A/q4zVmOl7dK/
+安装 setuptools Compression requires the (missing) zlib module 的解决方案
+http://blog.csdn.net/weiliu0626/article/details/8444644 centos下安装mysql_python报错
+http://www.cnblogs.com/yuechaotian/archive/2013/06/03/3115472.html 
+python安装完毕后，提示找不到ssl模块的解决步骤
+
+1、执行./configure时报错：configure: error: no acceptable C compiler found in $PATH
+查看得知未安装合适的编译器。
+sudo yum install gcc-c++
+(使用sudo yum install gcc-c++时会自动安装/升级gcc及其他依赖的包。)
+
+重新执行
+./configure
+make
+make install
+成功！
+2、安装 setuptools Compression requires the (missing) zlib module 的解决方案
+出错原因：
+提示的很清楚，缺少 zlib模块导致安装失败
+处理方式:
+1.	#  yum install zlib
+2.	# yum install zlib-devel
+3.	下载成功后，进入python2.7的目录，重新执行
+4.	#make
+5.	#make install
+6.	此时先前执行的 软连接仍旧生效
+7.	然后进入 setuptool目录，
+8.	[root@localhost setuptools-5.2]# pythonnew setup.py install  重新安装
+3、安装MySQL-python报错mysql_config not found,缺少mysql-devel库文件
+安装MySQL-devel后正常运行
+
+yum install mysql-devel
+4、python安装完毕后，提示找不到ssl模块的解决步骤
+python安装完毕后，提示找不到ssl模块：
+[root@localhost ~]# python2.7.5
+Python 2.7.5 (default, Jun 3 2013, 11:08:43) 
+[GCC 4.1.2 20080704 (Red Hat 4.1.2-54)] on linux2
+Type "help", "copyright", "credits" or "license" for more information.
+>>> import ssl
+Traceback (most recent call last):
+File "<stdin>", line 1, in <module>
+File "/usr/local/python27/lib/python2.7/ssl.py", line 60, in <module>
+import _ssl # if we can't import it, let the error propagate
+ImportError: No module named _ssl
+>>>
+
+2. 查看openssl安装包，发现缺少openssl-devel包
+[root@localhost ~]# rpm -aq|grep openssl
+openssl-0.9.8e-20.el5
+openssl-0.9.8e-20.el5
+[root@localhost ~]#
+
+3. yum安装openssl-devel
+[root@localhost ~]# yum install openssl-devel -y
+#查看安装结果
+[root@localhost ~]# rpm -aq|grep openssl
+openssl-0.9.8e-26.el5_9.1
+openssl-0.9.8e-26.el5_9.1
+openssl-devel-0.9.8e-26.el5_9.1
+openssl-devel-0.9.8e-26.el5_9.1
+
+4. 重新编译python
+#修改Setup文件
+vi /usr/software/Python-2.7.5/Modules/Setup
+#修改结果如下：
+# Socket module helper for socket(2)
+_socket socketmodule.c timemodule.c
+
+# Socket module helper for SSL support; you must comment out the other
+# socket line above, and possibly edit the SSL variable:
+#SSL=/usr/local/ssl
+_ssl _ssl.c \
+-DUSE_SSL -I$(SSL)/include -I$(SSL)/include/openssl \
+-L$(SSL)/lib -lssl -lcrypto
+
+
+5. 重新编译
+make
+make install
+
+6. 测试，已可正常使用。
+[root@localhost ~]# python2.7.5
+Python 2.7.5 (default, Jun 3 2013, 14:56:13) 
+[GCC 4.1.2 20080704 (Red Hat 4.1.2-54)] on linux2
+Type "help", "copyright", "credits" or "license" for more information.
+>>> import ssl
+>>>
