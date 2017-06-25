@@ -1,0 +1,67 @@
+# coding:utf-8
+在CentOS 6.5 上安装、配置MySQL 5.6
+参考：
+http://www.cnblogs.com/xiongpq/p/3384681.html 卸载旧版本
+http://www.jianshu.com/p/5a2e4e0b6eda  在CentOS 6.5 上安装、配置MySQL 5.6
+http://bbs.qcloud.com/thread-4670-1-1.html  允许外网可以连接mysql数据库
+
+背景
+CentOS 6.5 默认yum只能安装mysql 5.1
+安装前要检查机器原来是否安装过mysql，如有安装需要先进行数据备份、清理。
+[root@snails ~]# yum list installed | grep mysql
+[root@snails ~]# ps -ef|grep mysql
+[root@snails ~]# service mysqld stop 
+[root@snails ~]# rpm -e mysql-libs --nodeps
+[root@snails ~]# yum -y remove mysql mysql-*
+卸载旧版本
+使用下面的命令检查是否安装有MySQL Server
+rpm -qa | grep mysql
+有的话通过下面的命令来卸载掉
+rpm -e mysql   //普通删除模式
+rpm -e --nodeps mysql    // 强力删除模式，如果使用上面命令删除时，提示有依赖的其它文件，则用该命令可以对其进行强力删除
+设置安装源
+[root@snails ~]# wget http://repo.mysql.com/mysql57-community-release-el6-8.noarch.rpm
+[root@snails ~]# rpm -ivh mysql57-community-release-el6-8.noarch.rpm
+[root@snails ~]# ls -1 /etc/yum.repos.d/mysql-community*
+[root@snails ~]# yum repolist all | grep mysql
+[root@snails ~]# vi /etc/yum.repos.d/mysql-community.repo
+### 将[mysql56-community]的enabled设置为１,[mysql57-community]的enabled设置为0 ### 
+[root@snails ~]# yum repolist enabled | grep mysql
+mysql-connectors-community MySQL Connectors Community                         21
+mysql-tools-community      MySQL Tools Community                              37
+mysql56-community          MySQL 5.6 Community Server                        265
+注意:
+如果不使用5.7 或者其他任何版本，只能有一个是 enabled=1的，其他的都得enabled=0。
+安装MySQL
+[root@snails ~]# yum -y install mysql-server mysql
+修改默认配置
+[root@snails ~]# mkdir /data/mysql
+[root@snails ~]# vi /etc/my.cnf
+[mysqld]
+datadir=/data/mysql
+socket=/tmp/mysql.sock
+symbolic-links=0
+sql_mode=NO_ENGINE_SUBSTITUTION,STRICT_TRANS_TABLES
+
+[mysqld_safe]
+log-error=/var/log/mysqld.log
+pid-file=/var/run/mysqld/mysqld.pid
+
+[client] 
+socket=/tmp/mysql.sock
+启动服务
+[root@snails ~]# service mysqld start
+检查
+[root@snails ~]# netstat -ano |grep 3306
+tcp        0      0 0.0.0.0:3306                0.0.0.0:*                   LISTEN      off (0.00/0/0)
+修改root密码
+[root@snails ~]# mysql -u root
+mysql> use mysql;
+mysql> update user set password=PASSWORD("GIVE-NEW-ROOT-PASSWORD") where User='root';
+mysql> flush privileges;
+mysql> quit
+允许外网访问数据库
+mysql本身的用户只能在本机上连接数据库，外网连接的话，需要先添加远程用户并授权。
+在mysql命令行模式下，或者phpmyadmin中执行sql语句添加远程连接用户
+> grant all on *.* to root@'%' identified by '123456';
+> flush privileges;
